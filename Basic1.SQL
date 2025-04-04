@@ -287,3 +287,65 @@ next_value-
 lag(amount)over(partition by customer_id order by payment_date ) as previous_value,
 (amount-lag(amount)over(partition by customer_id order by payment_date ) as dff
 from payment;
+# ALTER TABLE 
+#create& drop 
+# customer_id, full_name,email, address
+# save as customer_information 
+create table customer_infromation as 
+(select 
+customer_id, concat(first_name,'  ',last_name) as full_name, 
+email, b.address
+from customer as a 
+join address as b on a.address_id=b.address_id) 
+drop table customer_infromation
+
+select*
+from customer_infromation; 
+
+
+## create view to see the table change with the update data at the same time
+create view vw_customer as  
+(select 
+customer_id, concat(first_name,'  ',last_name) as full_name, 
+email, b.address
+from customer as a 
+join address as b on a.address_id=b.address_id) 
+
+
+
+
+# film, title, length, category, order by length desc 
+# only film category in ( "action","comody")
+select* from film_category
+select * from category 
+create or replace view  view_film as 
+(select a.film_id, a.title, a.length as film_duration, c.name as category_name 
+from film as a 
+join film_category as b on a.film_id=b.film_id
+join category as c on b.category_id=c.category_id )
+where c.name in ('Action','Comedy')
+order by a.length desc)
+select * 
+from view_film
+where category_name in ('Action','Comedy')
+order by category_name desc
+; 
+
+
+# update film 0.99 into 1.99 
+# Change table customer 
+	# add column initial( data type varchar( 10)) 
+	# update data to initial ( 1 letter of first_name and 1 of last_name 
+	)
+update film 
+set rental_rate= 1.99 
+where rental_rate=0.99
+select * from film 
+order by rental_rate asc;
+#alter table 
+alter table customer 
+add column initials varchar(10)
+select* from customer; 
+update customer
+set initials =left(first_name,1)||'.'|| left(last_name,1)
+select * from customer;
