@@ -201,3 +201,89 @@ SELECT
     SUM(CASE WHEN rating = 'PG-13' THEN 1 ELSE 0 END) AS PG_13
 FROM film
 GROUP BY category;
+# Window function 
+select 
+from film as F 
+join category as C on F.
+select* 
+from category;
+select *
+from film;
+select* 
+from film_category;
+---window function rank, avg
+select a.film_id,c.name,a.length,a.title,
+avg(a.length)over(partition by c.name )
+from film as a 
+join film_category as b on a.film_id=b.film_id 
+join category as c on b.category_id=c.category_id
+order by film_id;
+select a.customer_id, 
+sum(b.amount) over(partition by a.customer_id) as total_amount,
+count(b.payment_id)over(partition by a.customer_id,b.amount) as number_payment
+from customer as A
+join payment as B on A.customer_id=B.customer_id
+order by A.customer_id;
+
+--window function rank
+select a.film_id,c.name,a.length,a.title,
+rank() over(partition by c.name order by a.length)desc )
+from film as a 
+join film_category as b on a.film_id=b.film_id 
+join category as c on b.category_id=c.category_id
+;
+
+
+select a.film_id,c.name,a.length,a.title,
+rank() over(partition by c.name order by a.length desc) as rank1, 
+Dense_rank() over(partition by c.name order by a.length desc) as rank_2,
+row number() over(partition by c.name order by a.length desc as rank_3
+from film as a 
+join film_category as b on a.film_id=b.film_id 
+join category as c on b.category_id=c.category_id
+;
+select* 
+from customer;
+select*
+from address; 
+select *
+from country; 
+select* from city; 
+select * from payment;
+---- 
+select * 
+from(select a.first_name,a.last_name, d.country, 
+count(*) as so_luong, 
+sum(e.amount) as total_amount,
+rank() over(partition by d.country order by sum(e.amount) desc) as rank1
+from customer as a 
+join address as b on a.address_id=b.address_id
+join city as c on b.city_id=c.city_id 
+join country as d on c.country_id.country_id 
+join payment as e on a.customer_id=e.customer_id
+group by a.first_name,a.last_name, d.country)
+as T
+where T.rank1 <=3
+;
+
+select * 
+from(select 
+customer_id, payment_date, amount, 
+row_number()over(partition by customer_id order by payment_date desc)as rank1
+from payment) as A
+where rank1=1
+;
+
+with new_table as
+(select date(payment_date) as date,
+sum(amount) as total_revenue 
+from payment
+group by date(payment_date))
+select date,total_revenue, 
+lag(total_revenue)over(order by date)as previous_value,
+total_revenue-lag(total_revenue)over(order by date)
+from new_table;
+next_value-
+lag(amount)over(partition by customer_id order by payment_date ) as previous_value,
+(amount-lag(amount)over(partition by customer_id order by payment_date ) as dff
+from payment;
