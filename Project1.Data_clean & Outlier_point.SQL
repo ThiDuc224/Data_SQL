@@ -1,4 +1,50 @@
 #project1 import&clean data 
+# create new table 
+create table SALES_DATASET_RFM_PRJ
+
+(ordernumber VARCHAR,
+
+quantityordered VARCHAR,
+
+priceeach        VARCHAR,
+
+orderlinenumber  VARCHAR,
+
+sales            VARCHAR,
+
+orderdate        VARCHAR,
+
+status           VARCHAR,
+
+productline      VARCHAR,
+
+msrp             VARCHAR,
+
+productcode      VARCHAR,
+
+customername     VARCHAR,
+
+phone            VARCHAR,
+
+addressline1     VARCHAR,
+
+addressline2     VARCHAR,
+
+city             VARCHAR,
+
+state            VARCHAR,
+
+postalcode       VARCHAR,
+
+country          VARCHAR,
+
+territory        VARCHAR,
+
+contactfullname  VARCHAR,
+
+dealsize         VARCHAR
+
+) 
 
 #clean data using alter 
 # modify data_type 
