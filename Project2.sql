@@ -96,6 +96,42 @@ Order by dates
 ---  extract month, year, product_category, total revenue/month(TPV), total order_per month(TPO), revenue growth(%), order_growth(%), tptal cost per month 
 ---- total profit_ permonth 
 --- profit_cost_ratio 
+WITH calculated_table AS (
+  SELECT 
+    FORMAT_DATE('%m', t1.created_at) AS Month,
+    FORMAT_DATE('%Y', t1.created_at) AS Year,
+    t2.category AS product_category, 
+    ROUND(SUM(t1.sale_price), 2) AS TPV, 
+    ROUND(SUM(t2.cost), 2) AS total_cost, 
+    COUNT(t1.order_id) AS TPO
+  FROM bigquery-public-data.thelook_ecommerce.order_items AS t1 
+  JOIN bigquery-public-data.thelook_ecommerce.products AS t2 
+    ON t1.product_id = t2.id
+  GROUP BY Month, Year, product_category
+)
+
+SELECT 
+  Month, Year,product_category,  TPV,   total_cost,  (TPV - total_cost) AS profit, 
+ ROUND((TPV - total_cost, total_cost), 2) AS profit_ratio,
+ROUND(CAST((TPV - LAG(TPV) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT)),LAG(TPV) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT))
+  ) AS DECIMAL    ) * 100.00, 2  ) || '%' AS Revenue_growth,
+  ROUND(CAST((TPO - LAG(TPO) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT)),LAG(TPO) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT))
+   
+      ) AS DECIMAL   ) * 100.00, 2 
+  ) || '%' AS Order_growth       
+   FROM calculated_table
+ORDER BY product_category, CAST(Year AS INT), CAST(Month AS INT);    
+
+  
+    
+        
+     
+
+
+
+  
+
+
 
 
 
