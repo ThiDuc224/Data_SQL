@@ -12,7 +12,7 @@ GROUP BY 1
 ORDER BY 1;
 --- Insight analysis: 
   - 
----2. AVO  averge orders and total number of customers each month 
+---2. AVO  average orders and the total number of customers each month 
 --- output month_year, distinct_users, average_order_value 
 select
 FORMAT_TIMESTAMP('%Y-%m', created_at) as month_year,
@@ -22,12 +22,12 @@ from bigquery-public-data.thelook_ecommerce.order_items
 where created_at between '2019-01-01' and '2022-05-01'
 group by 1;
 --- Insight: comment 2019 
--- notes : try to use CTE, select from the previous data? 
----3.Segmentation Analysis: group customer by age and gender 
-  ---- find youngest cutomers and oldest customer by genders. 
+-- notes: try to use CTE, select from the previous data? 
+---3.Segmentation Analysis: group customers by age and gender 
+  ---- Find the youngest customers and the oldest customer by gender. 
   --- output: first_name, last_name, gnder, age, tag(yougest or oldest customer)
 --- use row_number over (partition by gender and order by age asc/desc)
---- then tag yougest and oldest per gender base on previous ranking 
+--- then tag youngest and oldest per gender based onthe  previous ranking 
 --- combine and count total 
 with needed_data as (select id as user_id, gender, age
 from bigquery-public-data.thelook_ecommerce.users
@@ -52,7 +52,7 @@ group by gender, tag
 order by gender, tag
   ---Insight: 
 ---4. top five highest revenue products each month 
----- rank each product . Expected output: month_year, product_id, name, sales, cost, profit, rank_per month 
+---- Rank each product . Expected output: month_year, product_id, name, sales, cost, profit, rank_per month 
 select* 
 from bigquery-public-data.thelook_ecommerce.products
 select* 
@@ -96,8 +96,9 @@ Order by dates
 ---  extract month, year, product_category, total revenue/month(TPV), total order_per month(TPO), revenue growth(%), order_growth(%), tptal cost per month 
 ---- total profit_ permonth 
 --- profit_cost_ratio 
-WITH calculated_table AS (
-  SELECT 
+---- Revenue_growth ((current-previous)/previous) * 100% -- uses lag() over(pertition by...) to find the previous value 
+
+Create view vw_ecommerce_analyst as (with base_data as (SELECT 
     FORMAT_DATE('%m', t1.created_at) AS Month,
     FORMAT_DATE('%Y', t1.created_at) AS Year,
     t2.category AS product_category, 
@@ -107,26 +108,83 @@ WITH calculated_table AS (
   FROM bigquery-public-data.thelook_ecommerce.order_items AS t1 
   JOIN bigquery-public-data.thelook_ecommerce.products AS t2 
     ON t1.product_id = t2.id
-  GROUP BY Month, Year, product_category
-)
+  GROUP BY Month, Year, product_category)
+  select base_data.Month,base_data.Year,base_data.product_category,base_data.TPO,base_data.TPV,base_data.total_cost,
+  round(((base_data.TPV- base_data.total_cost)/base_data.total_cost),2) as profit_ration ,
+ round((base_data.TPV-lag(base_data.TPV) over(partition by base_data.product_category order by base_data.Month,base_data.Year))/lag(base_data.TPV) over(partition by base_data.product_category order by base_data.Month,base_data.Year)*100 ,2)|| "%" as  revenue_growth,
+ round((base_data.TPO-lag(base_data.TPO) over(partition by base_data.product_category order by base_data.Month,base_data.Year )/lag(base_data.TPO) over(partition by base_data.product_category order by base_data.Month,base_data.Year ))*100,2)|| "%" as TPO_growth
+ from base_data 
+order by base_data.product_category, base_data.Month, base_data.Year)
+--- Cohort_analysis filted_data
+  --- Corhort_month as index  ( (year - year first_purchase)* 12 + month1 - month 2 +1 ) as index , customer
+  --- first_purchase : min invoice_date, current_date 
+  --- count number of customers and sum_revenue 
+--- Cohort Chart 
+-- pivot table=> cohort_chart: sum ( case index and the number of customers in each index) 
+WITH a AS (
+  SELECT 
+    user_id AS customer_id,
+    created_at,
+    MIN(created_at) OVER (PARTITION BY user_id) AS first_date_purchase,
+    sale_price AS amount
+  FROM 
+    `bigquery-public-data.thelook_ecommerce.order_items),
 
+b AS (
+  SELECT
+    customer_id,
+    amount,
+    FORMAT_DATE('%Y-%m', DATE(first_date_purchase)) AS cohort_month,
+    ((EXTRACT(YEAR FROM created_at) - EXTRACT(YEAR FROM first_date_purchase)) * 12 +
+      EXTRACT(MONTH FROM created_at) - EXTRACT(MONTH FROM first_date_purchase) + 1) AS index
+  FROM a),
+
+c AS (
+  SELECT 
+    COUNT(DISTINCT customer_id) AS num_customers,
+    cohort_month,
+    index,
+    SUM(amount) AS total_revenue
+  FROM 
+    b
+  GROUP BY 
+    cohort_month, index),
+
+customer_cohort AS (
+  SELECT 
+    cohort_month, 
+    SUM(CASE WHEN index = 1 THEN num_customers ELSE 0 END) AS m1,
+    SUM(CASE WHEN index = 2 THEN num_customers ELSE 0 END) AS m2,
+    SUM(CASE WHEN index = 3 THEN num_customers ELSE 0 END) AS m3,
+    SUM(CASE WHEN index = 4 THEN num_customers ELSE 0 END) AS m4
+  FROM 
+    c 
+  GROUP BY 
+    cohort_month),
+
+retention_cohort AS (
+  SELECT 
+    cohort_month,
+    m1,
+    ROUND(100.0 * m1 / m1, 2) AS r1,
+    ROUND(100.0 * m2 / m1, 2) AS r2,
+    ROUND(100.0 * m3 / m1, 2) AS r3,
+    ROUND(100.0 * m4 / m1, 2) AS r4
+  FROM 
+    customer_cohort)
+
+-- Churn cohort calculation from numeric retention
 SELECT 
-  Month, Year,product_category,  TPV,   total_cost,  (TPV - total_cost) AS profit, 
- ROUND((TPV - total_cost, total_cost), 2) AS profit_ratio,
-ROUND(CAST((TPV - LAG(TPV) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT)),LAG(TPV) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT))
-  ) AS DECIMAL    ) * 100.00, 2  ) || '%' AS Revenue_growth,
-  ROUND(CAST((TPO - LAG(TPO) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT)),LAG(TPO) OVER(PARTITION BY product_category ORDER BY CAST(Year AS INT), CAST(Month AS INT))
-   
-      ) AS DECIMAL   ) * 100.00, 2 
-  ) || '%' AS Order_growth       
-   FROM calculated_table
-ORDER BY product_category, CAST(Year AS INT), CAST(Month AS INT);    
-
-  
-    
-        
-     
-
+  cohort_month,
+  (100 - r1) || '%' AS m1_churn,
+  (100 - r2) || '%' AS m2_churn,
+  (100 - r3) || '%' AS m3_churn,
+  (100 - r4) || '%' AS m4_churn
+FROM 
+  retention_cohort
+ORDER BY 
+  cohort_month;
+----insights 
 
 
   
