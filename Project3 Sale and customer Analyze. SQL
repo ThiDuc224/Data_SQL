@@ -1,0 +1,77 @@
+select *
+from sales_dataset_rfm_prj
+----1. Revenue from each product line . Output: PRODUCTLINE, YEAR_ID, DEALSIZE, REVENUE
+select 
+year_id,product_line,deal_size,sum(sales)as revenue
+from sales_dataset_rfm_prj
+group by product_line,year_id,deal_size
+order by product_line,year_id,deal_size;
+----2. Month has largest sale amount. Month_id, revenue, order_number 
+select month_id, count(order_number) as number_order, sum(sales)as revenue
+from sales_dataset_rfm_prj
+group by month_id 
+order by sum(sales)desc
+limit 1;
+--- november is the month with the best sale 
+---3. The best product line in November Month_id, revenue,product_line, order_number 
+
+select month_id,product_line, count(order_number) as number_order, sum(sales)as revenue
+from sales_dataset_rfm_prj
+group by month_id, product_line
+order by sum(sales)desc
+limit 1;
+--- Classic cars is the best produc_line in November 
+---4. year 
+select year_id, count(distinct order_number), sum(sales) as revenue 
+from sales_dataset_rfm_prj
+group by year_id 
+order by sum(sales) desc
+limit 1;
+		-- 2004 is the year with the largest sale amount
+--- 5: the best product_line each year in UK
+
+--Using CTE
+with rank_year as (select year_id, product_line, sum(sales) as revenue, 
+row_number() over(partition by year_id, country  order by sum(sales) desc) as rank_year 
+from sales_dataset_rfm_prj
+where country='UK'
+group by  year_id, product_line,country
+)
+select * 
+from rank_year
+where rank_year =1 
+-- Using subqueries 
+select * from (select year_id, product_line, sum(sales) as revenue, 
+row_number() over(partition by year_id, country  order by sum(sales) desc) as rank_year 
+from sales_dataset_rfm_prj
+where country='UK'
+group by  year_id, product_line,country) as rank_year
+where rank_year =1 
+	--Comment: classic Cars is the best product line in 2003 and 2004
+	-----------motorcycles is the best product line in 2005
+
+--5 RFM 
+select* 
+from sales_dataset_rfm_prj
+
+with RFM as (select 
+customer_name, current_date - max(order_date) as R, 
+sum(quantity_ordered) as F,
+sum(sales) as M 
+from  sales_dataset_rfm_prj 
+group by customer_name)
+-- RMF_score 
+, Final_data as (select customer_name , concat( R_score, F_score, M_score) as RMF 
+from (select customer_name, 
+ntile(5)over(order by R DESC) as R_score,
+ntile(5)over(order by F DESC) as F_score, 
+ntile(5)over(order by M DESC) as M_score
+from RFM) as RMF_score)
+
+--- RFM segmentation 
+
+select a.customer_name, a.RMF, b.segment
+from final_data as a 
+join segment_score as b on a.RMF=b.scores
+order by scores desc
+--- "Quebec Home Shopping Network" and "Australian Collectables, Ltd"  are two "champion"customers who get the highest RFM score.
