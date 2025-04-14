@@ -118,3 +118,19 @@ update sales_dataset_rfm_prj
 set QTR_ID= extract(quarter from order_date ); 
 select * 
 from  sales_dataset_rfm_prj;
+---define outliers
+---With box_plot as
+(Select Q1-1.5*IQR as min_value,
+        Q3+1.5*IQR as max_value
+ from
+(Select
+percentile_cont(0.25) WITHIN GROUP (ORDER BY QUANTITY_ORDERED) as Q1,
+percentile_cont(0.75) WITHIN GROUP (ORDER BY QUANTITY_ORDERED) as Q3,
+percentile_cont(0.75) WITHIN GROUP (ORDER BY QUANTITY_ORDERED) 
+- percentile_cont(0.25) WITHIN GROUP (ORDER BY QUANTITY_ORDERED) as IQR
+from sales_dataset_rfm_prj) as calcualtion)
+
+Select * from sales_dataset_rfm_prj 
+Where QUANTITY_ORDERED>(select max_value from box_plot) 
+or QUANTITY_ORDERED<(select min_value from box_plot);
+--- with Z-score
