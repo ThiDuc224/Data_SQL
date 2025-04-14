@@ -185,9 +185,9 @@ FROM
 ORDER BY 
   cohort_month;
 ----insights 
-
-
-  
+https://docs.google.com/spreadsheets/d/121spu6F1K7FZhHTMye1tc-EBlFJR2eF6/edit?gid=1772514665#gid=1772514665
+-- Comment: In general, the number of customers increased each month. However, the return rate is quite low in the first 4 months under 10% 
+---=> indicates low loyalty rate 
 
 
 
