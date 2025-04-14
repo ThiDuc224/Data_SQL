@@ -386,3 +386,77 @@ update user_data
 set users=(select avg(users) from user_data)
 where users in (select users from out_liner)
 select * from user_data;
+---- Segmentation analysis-- 
+CREATE TABLE customer
+(
+    customer_id varchar,
+    customer_name varchar,
+    segment varchar,
+    age  varchar,
+    country varchar,
+    city varchar,
+    state varchar,
+    postal_code varchar,
+    region varchar
+);
+
+CREATE TABLE sales
+(
+    order_line varchar,
+    order_id varchar,
+    order_date date,
+    ship_date date,
+    ship_mode varchar,
+    customer_id varchar,
+    produc_id varchar,
+    sales numeric,
+    quantity numeric,
+    discount numeric,
+    profit numeric
+);
+
+
+CREATE TABLE segment_score
+(
+    segment Varchar,
+    scores Varchar)
+
+select* 
+from customer;
+select * from sales;
+select * from segment_score
+--Step 1:RFM table 
+	-- R: receny= currentdate- max(order_date)
+	-- F: total order 
+	-- M: total amount 
+-- Step 2: RMF score : using ntile() function 
+--- step 3: RMF segmentation: join RMF score with segmentation 
+-- step 4: RMF analyze 
+with RMF as (select 
+a.customer_id, current_date- max(b.order_date) as R, 
+count(distinct b.order_id) as F, 
+sum(b.sales) as M
+from customer as a 
+join sales as b on a.customer_id=b.customer_id 
+group by a.customer_id) 
+,RMF_Score as (Select 
+customer_id,  
+ntile(5) over(order by R desc) as R_score,
+ntile(5) over(order by F ) as F_score,
+ntile(5) over(order by M) as M_score
+from RMF) 
+--- RMF group-- 
+, RMF_group as (select 
+customer_id,
+concat(R_score,F_score,M_score) as RMF
+from RMF_Score )
+
+
+--- Count number of customers in each segment 
+select segment, count(*)
+from(select a.customer_id,a.RMF,b.segment, b.scores
+from RMF_group as a 
+join segment_score as b on a.RMF=b.scores) as final_segment 
+group by  segment
+order by count(*)
+-- analyze-- 
